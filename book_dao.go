@@ -1,77 +1,35 @@
 package main
 
-import (
-	"database/sql"
-)
-
 func getAllBooks() []Book {
-	rows, err := db.Query("SELECT id, title, isbn FROM books")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
+	books := []Book{}
+	result := db.Find(&books)
 
-	result := []Book{}
-
-	for rows.Next() {
-		book := Book{}
-		err = rows.Scan(&book.ID, &book.Title, &book.Isbn)
-		if err != nil {
-			panic(err)
-		}
-		result = append(result, book)
+	if result.Error != nil {
+		panic(result.Error)
 	}
 
-	return result
+	return books
 }
 
 func getBookByID(id int64) (Book, error) {
-	row := db.QueryRow("SELECT id, title, isbn FROM books WHERE id = $1", id)
 	book := Book{}
+	err := db.First(&book, id).Error
 
-	switch err := row.Scan(&book.ID, &book.Title, &book.Isbn); err {
-	case sql.ErrNoRows:
+	if err != nil {
 		return book, err
-	case nil:
-		return book, nil
-	default:
-		panic(err)
 	}
+
+	return book, nil
 }
 
-func createNewBook(book Book) error {
-	statement := `
-		INSERT INTO books (title, isbn)
-		Values($1, $2)`
-
-	_, err := db.Exec(statement, book.Title, book.Isbn)
-	if err != nil {
-		return err
-	}
-	return nil
+func createNewBook(book *Book) {
+	db.Create(&book)
 }
 
-func updateBookByID(book Book) error {
-	statement := `
-		UPDATE books 
-		SET title = $2, isbn = $3
-		WHERE id = $1`
-
-	_, err := db.Exec(statement, book.ID, book.Title, book.Isbn)
-	if err != nil {
-		return err
-	}
-	return nil
+func updateBookByID(book *Book, updatedBook *Book) {
+	db.Model(&book).Updates(&updatedBook)
 }
 
-func deleteBookByID(book Book) error {
-	statement := `
-		DELETE FROM books 
-		WHERE id = $1`
-
-	_, err := db.Exec(statement, book.ID)
-	if err != nil {
-		return err
-	}
-	return nil
+func deleteBookByID(book *Book) {
+	db.Delete(&book)
 }

@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"reflect"
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 )
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
@@ -20,13 +22,13 @@ func getBook(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, _ := strconv.ParseInt(params["id"], 0, 36)
 
-	result, err := getBookByID(id)
-	if err != nil {
+	book, err := getBookByID(id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		w.WriteHeader(404)
 		return
 	}
 
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(book)
 }
 
 func createBook(w http.ResponseWriter, r *http.Request) {
@@ -47,12 +49,7 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err := createNewBook(book)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-
+	createNewBook(&book)
 	w.WriteHeader(204)
 }
 
@@ -62,18 +59,14 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(params["id"], 0, 36)
 
 	book, err := getBookByID(id)
-	if err != nil {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		w.WriteHeader(404)
 		return
 	}
 
-	json.NewDecoder(r.Body).Decode(&book)
-	err = updateBookByID(book)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-
+	updatedBook := Book{}
+	json.NewDecoder(r.Body).Decode(&updatedBook)
+	updateBookByID(&book, &updatedBook)
 	w.WriteHeader(204)
 }
 
@@ -83,16 +76,11 @@ func deleteBook(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(params["id"], 0, 36)
 
 	book, err := getBookByID(id)
-	if err != nil {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		w.WriteHeader(404)
 		return
 	}
 
-	err = deleteBookByID(book)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-
+	deleteBookByID(&book)
 	w.WriteHeader(204)
 }
